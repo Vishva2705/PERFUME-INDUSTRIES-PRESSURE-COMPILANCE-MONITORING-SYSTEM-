@@ -70,11 +70,11 @@ The proposed system improves industrial safety and reduces the risk of pressure-
 
 # Block Diagram
 
-![Block Diagram](Images/Block_diagram.jpg.jpg)
+![Block Diagram](Block_diagram.jpg.jpg)
 
 # Circuit Diagram
 
-![Circuit Diagram](Images/circuit_diagram.jpg.jpeg)
+![Circuit Diagram](circuit_diagram.jpg.jpeg)
 
 ---
 
@@ -82,11 +82,11 @@ The proposed system improves industrial safety and reduces the risk of pressure-
 
 ## LCD Output
 
-![LCD Output](Images/web_output2.jpg.jpg)
+![LCD Output](web_output2.jpg.jpg)
 
 ## Web Monitoring Output
 
-![Web Output](Images/web_output1.jpg.jpg)
+![Web Output](web_output1.jpg.jpg)
 
 ---
 
