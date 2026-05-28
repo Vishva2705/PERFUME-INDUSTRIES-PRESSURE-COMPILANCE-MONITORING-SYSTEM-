@@ -82,11 +82,13 @@ The proposed system improves industrial safety and reduces the risk of pressure-
 
 ## LCD Output
 
-![LCD Output](web_output2.jpg)
+![LCD Output](lcd_output.jpg)
 
 ## Web Monitoring Output
 
 ![Web Output](web_output1.jpg)
+![Web Output](web_output2.jpg)
+
 
 ---
 
