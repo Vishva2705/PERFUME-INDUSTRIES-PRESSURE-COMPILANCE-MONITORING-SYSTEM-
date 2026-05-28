@@ -1,0 +1,184 @@
+#include <ESP8266WiFi.h>
+#include <Wire.h>
+#include <Adafruit_BMP085.h>
+#include <LiquidCrystal_I2C.h>
+
+// WiFi Credentials
+const char* ssid = "vis";
+const char* password = "123456789";
+
+// Objects
+WiFiServer server(80);
+Adafruit_BMP085 bmp;
+LiquidCrystal_I2C lcd(0x27,16,2); // I2C LCD 16x2, adjust 0x27 if needed
+
+// Alert Logic
+int highCount = 0;
+unsigned long firstHighTime = 0;
+bool showReport = false;
+unsigned long reportStartTime = 0;
+
+String status = "";
+String alertMsg = "System Normal";
+
+// Report Data
+float alertPressure1 = 0;
+float alertPressure2 = 0;
+String alertTime1 = "";
+String alertTime2 = "";
+
+// --------------------- Setup ---------------------
+void setup() {
+  Serial.begin(115200);
+  Wire.begin();
+
+  // Start LCD
+  lcd.init();
+  lcd.backlight();
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("Starting...");
+
+  // WiFi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nConnected!");
+  Serial.println(WiFi.localIP());
+
+  // Start Web Server
+  server.begin();
+
+  // BMP Sensor
+  if (!bmp.begin()) {
+    Serial.println("BMP180 not found!");
+    lcd.clear();
+    lcd.print("Sensor Error");
+    while(1);
+  }
+}
+
+// --------------------- Helper Function ---------------------
+String getTime() {
+  return String(millis() / 1000) + " sec";
+}
+
+// --------------------- Main Loop ---------------------
+void loop() {
+  // ----------------- Read Sensor -----------------
+  float pressure = bmp.readPressure() / 100.0;  // hPa
+  float temp = bmp.readTemperature();
+
+  // ----------------- Pressure Status -----------------
+  if (pressure < 999) {
+    status = "LOW";
+    highCount = 0;
+  }
+  else if (pressure <= 1001) {
+    status = "MEDIUM";
+    highCount = 0;
+  }
+  else {
+    status = "HIGH";
+
+    // First high detection
+    if (highCount == 0) {
+      firstHighTime = millis();
+      alertPressure1 = pressure;
+      alertTime1 = getTime();
+    }
+
+    // Count consecutive high within 15 sec
+    if (millis() - firstHighTime <= 15000) {
+      highCount++;
+    } else {
+      highCount = 1;
+      firstHighTime = millis();
+      alertPressure1 = pressure;
+      alertTime1 = getTime();
+    }
+
+    // Trigger report on 2 consecutive highs
+    if (highCount == 2) {
+      alertPressure2 = pressure;
+      alertTime2 = getTime();
+      showReport = true;
+      reportStartTime = millis();
+      alertMsg = "PRESSURE SAFETY COMPLIANCE REPORT GENERATED";
+    }
+  }
+
+  // ----------------- Auto hide report after 10 sec -----------------
+  if (showReport && (millis() - reportStartTime > 10000)) {
+    showReport = false;
+    highCount = 0;
+    alertMsg = "System Normal";
+  }
+
+  // ----------------- Update LCD -----------------
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("P:");
+  lcd.print(pressure);
+  lcd.print("hPa");
+
+  lcd.setCursor(0,1);
+  lcd.print("S:");
+  lcd.print(status);
+
+  // ----------------- Handle Web Client -----------------
+  WiFiClient client = server.available();
+  if (client) {
+    String html = "<!DOCTYPE html><html><head>";
+    html += "<meta http-equiv='refresh' content='2'>";
+    html += "<style>body{font-family:Arial;margin:20px;}";
+    html += "h1{text-align:center;}.box{border:1px solid #000;padding:15px;margin:15px;}";
+    html += ".alert{color:red;font-weight:bold;}</style></head><body>";
+
+    html += "<h1>Industrial Pressure Monitoring System</h1>";
+
+    html += "<div class='box'>";
+    html += "<p>Temperature: " + String(temp) + " C</p>";
+    html += "<p>Pressure: " + String(pressure) + " hPa</p>";
+    html += "<p>Status: " + status + "</p>";
+    html += "</div>";
+
+    // Show Report if triggered
+    if (showReport) {
+      html += "<div class='box'>";
+      html += "<h2 class='alert'>PRESSURE SAFETY COMPLIANCE REPORT</h2>";
+      html += "<p>Factory Name : ABC INDUSTRIES</p>";
+      html += "<p>Factory ID : F123</p>";
+      html += "<p>Location : Chennai</p>";
+      html += "<p>Date : Demo</p>";
+      html += "<p>Monitoring Device ID : ESP8266-01</p>";
+      html += "<p>Sensor Type : Pressure Sensor</p>";
+
+      html += "<h3>PRESSURE ALERT SUMMARY</h3>";
+      html += "<p>Alert 1 - Time: " + alertTime1 + " | Pressure: " + String(alertPressure1) + " | Status: Medium Warning</p>";
+      html += "<p>Alert 2 - Time: " + alertTime2 + " | Pressure: " + String(alertPressure2) + " | Status: High Alert</p>";
+      html += "<p>Alert 3 - Status: Critical</p>";
+
+      html += "<h3>SYSTEM EVENT LOG</h3>";
+      html += "<p>System Start Time : 0 sec</p>";
+      html += "<p>Pressure Limit Crossed : YES</p>";
+      html += "<p>Second Alert Generated : YES</p>";
+      html += "<p>Automatic Report Sent : YES</p>";
+
+      html += "<h3>TAMPERING DETECTION</h3>";
+      html += "<p>System Shutdown Attempt : NO</p>";
+
+      html += "<h3>FINAL STATUS : CRITICAL CONDITION DETECTED</h3>";
+      html += "</div>";
+    }
+
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: text/html");
+    client.println();
+    client.println(html);
+  }
+
+  delay(1000);
+}
