@@ -80,13 +80,9 @@ The proposed system improves industrial safety and reduces the risk of pressure-
 
 # Project Images
 
-## Hardware Setup
-
-![Hardware Setup](Images/hardware_setup.jpg.jpg)
-
 ## LCD Output
 
-![LCD Output](Images/lcd_output2.jpg.jpg)
+![LCD Output](Images/web_output2.jpg.jpg)
 
 ## Web Monitoring Output
 
